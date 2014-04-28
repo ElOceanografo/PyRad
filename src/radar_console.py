@@ -1,5 +1,7 @@
 import sys
 import time
+import random
+import threading
 from PyQt4 import QtGui, QtCore
 import Queue
 from scope_monitor import ScopeMonitorThread
@@ -32,10 +34,13 @@ class RadarConsole(QtGui.QWidget):
 
 		# display panel
 		displaySplitter = QtGui.QSplitter(QtCore.Qt.Vertical)
-		ppi = QtGui.QLabel(self)
-		ascope = QtGui.QLabel(self)
-		displaySplitter.addWidget(ppi)
-		displaySplitter.addWidget(ascope)
+		self.ppi = QtGui.QLabel(self)
+		self.ascope = QtGui.QLabel(self)
+		displaySplitter.addWidget(self.ppi)
+		#### Just for now
+		displaySplitter.addWidget(self.ascope)
+		self.ascope.setText("A-Scope")
+		####
 
 		# entire layout
 		overallLayout = QtGui.QHBoxLayout()
@@ -74,16 +79,31 @@ class RadarConsole(QtGui.QWidget):
 		self.status_text.setText("Starting data acquisition...")
 		self.scope_monitor.start()
 		self.status_text.setText("Recording")
-		
+
+		#self.update_plot()
+
+
 
 	def stopRecording(self):
+
 		if self.scope_monitor is not None:
 			self.scope_monitor.join()
+			#self.plot_thread.join()
 			self.status_text.setText("Stopping data acquisition...")
 			self.scope_monitor = None
+
 		self.status_text.setText("Ready")
 		self.recordBtn.setStyleSheet("color : black; background-color: green")
 		self.recording = False
+
+	def update_plots(self):
+		while self.recording:
+			try:
+				timestamp, data = self.radar_data_q.get(True)
+				self.ascope.setText(repr(timestamp))
+				self.ppi.setText(repr(data[0:10]))
+			except Queue.empty:
+				pass
 
 		
 def main():

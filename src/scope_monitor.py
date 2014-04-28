@@ -13,9 +13,11 @@ class ScopeMonitorThread(threading.Thread):
 		self.alive.set()
 
 	def run(self):
+		dt = 1.0 #2100.0
 		while self.alive.isSet():
 			timestamp = time.time()
 			self.data_q.put((timestamp, np.random.randn(128)))
+			time.sleep(dt)
 
 	def join(self, timeout=None):
 		self.alive.clear()
