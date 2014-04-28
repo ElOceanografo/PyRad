@@ -5,6 +5,8 @@
 		- A RadarScope object, connected to the PS3405
 		- a path to save files in
 		- display settings: range, thresholds, colormaps, etc.
+	- Methods:
+		- 
 
 - class RadarPropertiesDialog
 
@@ -17,3 +19,4 @@ pushButton.clicked.connect(selectFile)
 
 - class RadarScope
 	- getSweep()
+
