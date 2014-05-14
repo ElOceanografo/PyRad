@@ -1,5 +1,4 @@
 PyRad
 =====
 
-Radar digitizing software for DIY Radar Ornithology.
-
+Data acquisition software for DIY Radar Ornithology
