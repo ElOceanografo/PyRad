@@ -1,4 +1,5 @@
 PyRad
 =====
 
-Set of python progams for the collection of radar data.
+Radar digitizing software for DIY Radar Ornithology.
+
