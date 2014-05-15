@@ -1,4 +1,4 @@
-import picoscope
+from pico_python import picoscope
 import numpy as np
 import time
 from ctypes import *
@@ -94,6 +94,10 @@ class RadarScope(object):
 		print "Time to transfer data: ", str(time.time() - t1)
 
 	def capture_sweep(self, downsample_ratio=0, downsample_mode=0):
+		'''
+		Runs a sweep and then transfers the data to the RadarScope's memory
+		buffers (i.e., on the computer).
+		'''
 		t1 = time.time()
 		self.run_sweep()
 		self.ps.waitReady()
@@ -140,6 +144,38 @@ class RadarScope(object):
 		Closes the PicoScope API, releasing the oscilloscope.
 		'''
 		self.ps.close()
+
+class TestRadarScope(object):
+	"""dummy class with same methods as RadarScope for testing"""
+	def __init__(self):
+		super(TestRadarScope, self).__init__()
+
+	def run_sweep(self):
+		pass
+
+	def transfer_data(self):
+		pass
+
+	def capture_sweep(self):
+		pass
+
+	def zero_heading_indices(self):
+		pass
+
+	def get_trimmed_sweep(self):
+		data = np.random.randn(400, 400)
+		data[:, 0] = 2
+		return data
+
+	def to_file(self):
+		pass
+
+	def record(self):
+		pass
+
+	def disconnect(self):
+		pass
+		
 
 
 if __name__ == '__main__':
