@@ -1,4 +1,4 @@
-import sys, os, random
+import sys, os, random, time
 import scipy as sp
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -8,6 +8,8 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as NavigationToolbar
 from matplotlib.figure import Figure
 
+from radar_scope import TestRadarScope
+
 
 class RadarConsole(QMainWindow):
     def __init__(self, parent=None):
@@ -16,7 +18,8 @@ class RadarConsole(QMainWindow):
         self.create_menu()
         self.create_main_frame()
         self.create_status_bar()
-        self.on_draw()
+        self.connect_scope()
+        # self.on_draw()
 
     def save_plot(self):
         pass
@@ -35,11 +38,10 @@ class RadarConsole(QMainWindow):
     
     
     def on_draw(self):
-        """ Redraws the figure
         """
-        self.data = sp.randn(400, 400)#map(int, str.split())
-        self.data[:, 0] = 2
-        
+        Redraws the figure
+        """
+        self.data = self.radar_scope.get_trimmed_sweep()
         theta = sp.linspace(0, 2 * sp.pi, self.data.shape[0])
         theta = sp.hstack((theta[100:400], theta[0:100]))
         R = sp.arange(self.data.shape[1])
@@ -134,8 +136,14 @@ class RadarConsole(QMainWindow):
         return action
 
     def connect_scope(self):
+        msg = """
+        Placeholder for the dialog box that will setup the scope
+        """
+        QMessageBox.about(self, "About the demo", msg.strip())
         self.status_text.setText("(Connecting to scope)")
-        time.sleep(2)
+        self.radar_scope = TestRadarScope()
+        self.status_text.setText("Ready")
+
 
     def set_output_file(self):
         self.status_text.setText("(Choosing output file)")
@@ -160,7 +168,7 @@ class RadarConsole(QMainWindow):
         self.status_text.setStyleSheet('color: red')
         
     def stopRecording(self):
-        # if self.scope_monitor is not None:
+        # if self is not None:
         #     self.scope_monitor.join()
         #     self.status_text.setText("Stopping data acquisition...")
         #     self.scope_monitor = None
