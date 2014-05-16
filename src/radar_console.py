@@ -12,7 +12,7 @@ from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as Naviga
 from matplotlib.figure import Figure
 
 from radar_scope import TestRadarScope
-from scope_monitor import DataAcquisitionThread, DataProcessingThread
+from radar_scope_threads import DataAcquisitionThread, DataProcessingThread
 
 
 class RadarConsole(QMainWindow):
@@ -167,6 +167,8 @@ class RadarConsole(QMainWindow):
         self.data_q = Queue.Queue()
         self.acq_thread = DataAcquisitionThread(self.data_q, self.radar_scope)
         self.proc_thread = DataProcessingThread(self.data_q, self.radar_scope, self)
+        self.acq_thread.setDaemon(True)
+        self.proc_thread.setDaemon(True)
         self.acq_thread.start()
         self.proc_thread.start()
         self.status_text.setText("Recording")
