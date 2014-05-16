@@ -24,6 +24,8 @@ class RadarConsole(QMainWindow):
         self.create_status_bar()
         self.connect_scope()
         # self.update_ppi()
+        self.data = None
+        self.timestamp = None
 
     def save_plot(self):
         pass
@@ -45,7 +47,8 @@ class RadarConsole(QMainWindow):
         """
         Redraws the figure
         """
-        self.data = self.radar_scope.get_trimmed_sweep()
+        # if self.data is None:
+        #     self.data = self.radar_scope.get_trimmed_sweep()
         theta = sp.linspace(0, 2 * sp.pi, self.data.shape[0])
         theta = sp.hstack((theta[100:400], theta[0:100]))
         R = sp.arange(self.data.shape[1])
@@ -67,7 +70,7 @@ class RadarConsole(QMainWindow):
         
 
         # control panel
-        self.recordBtn = QPushButton("Record", self)
+        self.recordBtn = QPushButton("&Record", self)
         self.recordBtn.setCheckable(True)
         self.recordBtn.clicked[bool].connect(self.setRecording)
 

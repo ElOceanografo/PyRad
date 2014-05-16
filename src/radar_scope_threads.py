@@ -38,6 +38,8 @@ class DataProcessingThread(threading.Thread):
 	def run(self):
 		while self.alive.isSet():
 			timestamp, data = self.data_q.get()
+			self.radar_console.data = data
+			self.radar_console.timestamp = timestamp
 			self.radar_console.update_ppi()
 			self.data_q.task_done()
 
