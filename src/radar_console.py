@@ -74,12 +74,13 @@ class RadarConsole(QMainWindow):
         self.recordBtn.setCheckable(True)
         self.recordBtn.clicked[bool].connect(self.setRecording)
 
-        self.update_button = QPushButton("&Update")
-        self.connect(self.update_button, SIGNAL('clicked()'), self.update_ppi)    
+        self.capture_button = QPushButton("&Capture")
+        self.capture_button.setCheckable(True)
+        self.capture_button.clicked[bool].connect(self.capture_sweep) 
 
         # Layout with box sizers
         controlbox = QVBoxLayout()
-        for w in [self.recordBtn, self.update_button]:
+        for w in [self.recordBtn, self.capture_button]:
             w.setFixedWidth(200)
             controlbox.addWidget(w)
         controlbox.addStretch(1)
@@ -157,6 +158,20 @@ class RadarConsole(QMainWindow):
         self.status_text.setText("(Choosing output file)")
         time.sleep(2)
 
+    def save_file(self):
+        time.sleep(1)
+
+    def capture_sweep(self, on):
+        if on:
+            self.timestamp = time.time()
+            self.data = self.radar_scope.get_trimmed_sweep()
+            self.update_ppi()
+            self.save_file()
+            self.capture_button.setChecked(False)
+        else:
+            if self.recording:
+                self.capture_button.setChecked(True)
+
     def setRecording(self, on):
         if on:
             self.startRecording()
@@ -167,6 +182,7 @@ class RadarConsole(QMainWindow):
         if self.acq_thread is not None: # i.e., if we're already recording
             return
         self.recording = True
+        self.capture_button.setChecked(True)
         self.data_q = Queue.Queue()
         self.acq_thread = DataAcquisitionThread(self.data_q, self.radar_scope)
         self.proc_thread = DataProcessingThread(self.data_q, self.radar_scope, self)
@@ -186,3 +202,4 @@ class RadarConsole(QMainWindow):
         self.status_text.setText("Ready")
         self.status_text.setStyleSheet('color: black')
         self.recording = False
+        self.capture_button.setChecked(False)
