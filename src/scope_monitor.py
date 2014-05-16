@@ -3,10 +3,10 @@ from Queue import Queue
 import time
 import numpy as np
 
-class ScopeMonitorThread(threading.Thread):
-	"""docstring for ScopeMonitorThread"""
+class DataAcquisitionThread(threading.Thread):
+	"""docstring for DataAcquisitionThread"""
 	def __init__(self, data_q, radar_scope):
-		super(ScopeMonitorThread, self).__init__()
+		super(DataAcquisitionThread, self).__init__()
 		self.radar_scope = radar_scope
 		self.data_q = data_q
 		self.alive = threading.Event()
@@ -24,3 +24,23 @@ class ScopeMonitorThread(threading.Thread):
 		self.alive.clear()
 		threading.Thread.join(self, timeout)
 
+
+class DataProcessingThread(threading.Thread):
+	"""docstring for DataProcessingThread"""
+	def __init__(self, data_q, radar_scope, radar_console):
+		super(DataProcessingThread, self).__init__()
+		self.data_q = data_q
+		self.radar_scope = radar_scope
+		self.radar_console = radar_console
+		self.alive = threading.Event()
+		self.alive.set()
+
+	def run(self):
+		while self.alive.isSet():
+			timestamp, data = self.data_q.get()
+			self.radar_console.update_ppi()
+			self.data_q.task_done()
+
+	def join(self, timeout=None):
+		self.alive.clear()
+		threading.Thread.join(self, timeout)

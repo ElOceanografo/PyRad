@@ -2,16 +2,17 @@ import sys, os, random, time
 import scipy as sp
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
+import Queue
 
 import matplotlib
 matplotlib.use('Qt4Agg')
 matplotlib.rcParams['backend.qt4']='PyQt4'
-
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as NavigationToolbar
 from matplotlib.figure import Figure
 
 from radar_scope import TestRadarScope
+from scope_monitor import DataAcquisitionThread, DataProcessingThread
 
 
 class RadarConsole(QMainWindow):
@@ -22,7 +23,7 @@ class RadarConsole(QMainWindow):
         self.create_main_frame()
         self.create_status_bar()
         self.connect_scope()
-        # self.on_draw()
+        # self.update_ppi()
 
     def save_plot(self):
         pass
@@ -40,7 +41,7 @@ class RadarConsole(QMainWindow):
         QMessageBox.about(self, "About the demo", msg.strip())
     
     
-    def on_draw(self):
+    def update_ppi(self):
         """
         Redraws the figure
         """
@@ -70,12 +71,12 @@ class RadarConsole(QMainWindow):
         self.recordBtn.setCheckable(True)
         self.recordBtn.clicked[bool].connect(self.setRecording)
 
-        self.draw_button = QPushButton("&Draw")
-        self.connect(self.draw_button, SIGNAL('clicked()'), self.on_draw)    
+        self.update_button = QPushButton("&Update")
+        self.connect(self.update_button, SIGNAL('clicked()'), self.update_ppi)    
 
         # Layout with box sizers
         controlbox = QVBoxLayout()
-        for w in [self.recordBtn, self.draw_button]:
+        for w in [self.recordBtn, self.update_button]:
             w.setFixedWidth(200)
             controlbox.addWidget(w)
         controlbox.addStretch(1)
@@ -145,8 +146,9 @@ class RadarConsole(QMainWindow):
         QMessageBox.about(self, "About the demo", msg.strip())
         self.status_text.setText("(Connecting to scope)")
         self.radar_scope = TestRadarScope()
+        self.acq_thread = None
+        self.proc_thread = None
         self.status_text.setText("Ready")
-
 
     def set_output_file(self):
         self.status_text.setText("(Choosing output file)")
@@ -159,23 +161,23 @@ class RadarConsole(QMainWindow):
             self.stopRecording()
 
     def startRecording(self):
-        # if self.scope_monitor is not None: # i.e., if we're already recording
-        #     return
-        # self.recordBtn.setStyleSheet("color : black; background-color: red")
-        # self.recording = True
-        # self.radar_data_q = Queue.Queue()
-        # self.scope_monitor = ScopeMonitorThread(self.radar_data_q)
-        # self.status_text.setText("Starting data acquisition...")
-        # self.scope_monitor.start()
+        if self.acq_thread is not None: # i.e., if we're already recording
+            return
+        self.recording = True
+        self.data_q = Queue.Queue()
+        self.acq_thread = DataAcquisitionThread(self.data_q, self.radar_scope)
+        self.proc_thread = DataProcessingThread(self.data_q, self.radar_scope, self)
+        self.acq_thread.start()
+        self.proc_thread.start()
         self.status_text.setText("Recording")
         self.status_text.setStyleSheet('color: red')
         
     def stopRecording(self):
-        # if self is not None:
-        #     self.scope_monitor.join()
-        #     self.status_text.setText("Stopping data acquisition...")
-        #     self.scope_monitor = None
+        if self.acq_thread is not None:
+            self.acq_thread.join(0.01)
+            self.proc_thread.join(0.01)       
+            self.acq_thread = None
+            self.proc_thread = None
         self.status_text.setText("Ready")
         self.status_text.setStyleSheet('color: black')
-        # self.recordBtn.setStyleSheet("color : black; background-color: green")
-        # self.recording = False
+        self.recording = False
