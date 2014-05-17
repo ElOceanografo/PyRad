@@ -35,6 +35,7 @@ class RadarConsole(QMainWindow):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_clock)
         self.timer.start(1000)
+        self.recording = False
 
     def on_about(self):
         msg = """ A demo of using PyQt with matplotlib:
@@ -50,8 +51,7 @@ class RadarConsole(QMainWindow):
 
     def update_clock(self):
         self.time_text.setText(time.strftime(CLOCK_FMT))
-    
-    
+
     def update_ppi(self):
         """
         Redraws the figure
@@ -119,14 +119,18 @@ class RadarConsole(QMainWindow):
         set_output_dir_action = self.create_action("&Set output directory",
             shortcut="Ctrl+S", slot=self.set_output_dir, 
             tip="Save the plot")
-        connect_scope_action = self.create_action("Set &radar scope",
-            shortcut="Ctrl+r", slot=self.connect_scope, 
+        connect_scope_action = self.create_action("&Connect scope",
+            shortcut="Ctrl+c", slot=self.connect_scope, 
+            tip="Connect to digitizing oscilloscope")
+        disconnect_scope_action = self.create_action("&Disconnect scope",
+            shortcut="Ctrl+d", slot=self.disconnect_scope, 
             tip="Connect to digitizing oscilloscope")
         quit_action = self.create_action("&Quit", slot=self.close, 
             shortcut="Ctrl+Q", tip="Close the application")
         
         self.add_actions(self.file_menu, 
-            (set_output_dir_action, connect_scope_action, None, quit_action))
+            (set_output_dir_action, connect_scope_action, disconnect_scope_action,
+             None, quit_action))
         
         self.help_menu = self.menuBar().addMenu("&Help")
         about_action = self.create_action("&About", 
@@ -142,9 +146,8 @@ class RadarConsole(QMainWindow):
             else:
                 target.addAction(action)
 
-    def create_action(  self, text, slot=None, shortcut=None, 
-                        icon=None, tip=None, checkable=False, 
-                        signal="triggered()"):
+    def create_action(self, text, slot=None, shortcut=None, 
+        icon=None, tip=None, checkable=False, signal="triggered()"):
         action = QAction(text, self)
         if icon is not None:
             action.setIcon(QIcon(":/%s.png" % icon))
@@ -169,9 +172,25 @@ class RadarConsole(QMainWindow):
         # QMessageBox.about(self, "About the demo", msg.strip())
         # self.status_text.setText("(Connecting to scope)")
         self.radar_scope = TestRadarScope()
-        self.acq_thread = None
-        self.proc_thread = None
-        self.status_text.setText("Ready")
+        self.data_q = Queue.Queue()
+        self.acq_thread = DataAcquisitionThread(self.data_q, self.radar_scope)
+        self.proc_thread = DataProcessingThread(self.data_q, self.radar_scope, self)
+        self.acq_thread.setDaemon(True)
+        self.proc_thread.setDaemon(True)
+        self.acq_thread.start()
+        self.proc_thread.start()
+        self.status_text.setText("Connected")
+
+    def disconnect_scope(self):
+        if self.acq_thread is not None:
+            self.acq_thread.join(0.01)
+            self.proc_thread.join(0.01)       
+            self.acq_thread = None
+            self.proc_thread = None
+            self.stopRecording()
+            self.status_text.setText("Not connected")
+        self.radar_scope.disconnect()
+        self.radar_scope = None
 
     def set_output_dir(self):
         self.output_dir = QFileDialog.getExistingDirectory(self, 
@@ -209,29 +228,16 @@ class RadarConsole(QMainWindow):
     def startRecording(self):
         if self.radar_scope is None:
             self.connect_scope()
-        if self.acq_thread is not None: # i.e., if we're already recording
-            return
         self.recording = True
         self.capture_button.setChecked(True)
-        self.data_q = Queue.Queue()
-        self.acq_thread = DataAcquisitionThread(self.data_q, self.radar_scope)
-        self.proc_thread = DataProcessingThread(self.data_q, self.radar_scope, self)
-        self.acq_thread.setDaemon(True)
-        self.proc_thread.setDaemon(True)
-        self.acq_thread.start()
-        self.proc_thread.start()
         self.status_text.setText("Recording")
         self.status_text.setStyleSheet('color: red')
         
     def stopRecording(self):
-        if self.acq_thread is not None:
-            self.acq_thread.join(0.01)
-            self.proc_thread.join(0.01)       
-            self.acq_thread = None
-            self.proc_thread = None
         self.status_text.setText("Ready")
         self.status_text.setStyleSheet('color: black')
         self.recording = False
+        self.recordBtn.setChecked(False)
         self.capture_button.setChecked(False)
 
 def read_config(filename):

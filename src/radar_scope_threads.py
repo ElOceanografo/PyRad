@@ -3,6 +3,8 @@ from Queue import Queue
 import time
 import numpy as np
 
+TIMESTAMP_FMT = "%Y%m%d_%H%M%S"
+
 class DataAcquisitionThread(threading.Thread):
 	"""docstring for DataAcquisitionThread"""
 	def __init__(self, data_q, radar_scope):
@@ -15,7 +17,7 @@ class DataAcquisitionThread(threading.Thread):
 	def run(self):
 		dt = 2.0 #2100.0
 		while self.alive.isSet():
-			timestamp = time.time()
+			timestamp = time.strftime(TIMESTAMP_FMT)
 			self.radar_scope.capture_sweep()
 			self.data_q.put((timestamp, self.radar_scope.get_trimmed_sweep()))
 			time.sleep(dt)
@@ -41,6 +43,8 @@ class DataProcessingThread(threading.Thread):
 			self.radar_console.data = data
 			self.radar_console.timestamp = timestamp
 			self.radar_console.update_ppi()
+			if self.radar_console.recording:
+				self.radar_console.save_file()
 			self.data_q.task_done()
 
 	def join(self, timeout=None):
