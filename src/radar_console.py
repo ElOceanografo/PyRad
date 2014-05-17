@@ -14,6 +14,9 @@ from matplotlib.figure import Figure
 from radar_scope import TestRadarScope
 from radar_scope_threads import DataAcquisitionThread, DataProcessingThread
 
+# Constants
+CLOCK_FMT = "%Y%m%d-%H:%M:%S"
+TIMESTAMP_FMT = "%Y%m%d_%H%M%S"
 
 class RadarConsole(QMainWindow):
     def __init__(self, parent=None):
@@ -22,13 +25,16 @@ class RadarConsole(QMainWindow):
         self.create_menu()
         self.create_main_frame()
         self.create_status_bar()
-        self.connect_scope()
+        #self.connect_scope()
         # self.update_ppi()
+        self.radar_scope = None
         self.data = None
         self.timestamp = None
-
-    def save_plot(self):
-        pass
+        self.output_dir = os.getcwd()
+        self.file_text.setText(self.output_dir)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_clock)
+        self.timer.start(1000)
 
     def on_about(self):
         msg = """ A demo of using PyQt with matplotlib:
@@ -41,6 +47,9 @@ class RadarConsole(QMainWindow):
          * Click on a bar to receive an informative message
         """
         QMessageBox.about(self, "About the demo", msg.strip())
+
+    def update_clock(self):
+        self.time_text.setText(time.strftime(CLOCK_FMT))
     
     
     def update_ppi(self):
@@ -97,20 +106,27 @@ class RadarConsole(QMainWindow):
         self.setCentralWidget(self.main_frame)
     
     def create_status_bar(self):
-        self.status_text = QLabel("This is a demo")
-        self.statusBar().addWidget(self.status_text, 1)
+        self.status_text = QLabel("Not connected")
+        self.file_text = QLabel("some file")
+        self.time_text = QLabel(time.strftime(CLOCK_FMT))
+        self.statusBar().addWidget(self.status_text, 0.5)
+        self.statusBar().addWidget(self.file_text, 1)
+        self.statusBar().addWidget(self.time_text)
         
     def create_menu(self):        
         self.file_menu = self.menuBar().addMenu("&File")
         
-        load_file_action = self.create_action("&Save plot",
-            shortcut="Ctrl+S", slot=self.save_plot, 
+        set_output_dir_action = self.create_action("&Set output directory",
+            shortcut="Ctrl+S", slot=self.set_output_dir, 
             tip="Save the plot")
+        connect_scope_action = self.create_action("Set &radar scope",
+            shortcut="Ctrl+r", slot=self.connect_scope, 
+            tip="Connect to digitizing oscilloscope")
         quit_action = self.create_action("&Quit", slot=self.close, 
             shortcut="Ctrl+Q", tip="Close the application")
         
         self.add_actions(self.file_menu, 
-            (load_file_action, None, quit_action))
+            (set_output_dir_action, connect_scope_action, None, quit_action))
         
         self.help_menu = self.menuBar().addMenu("&Help")
         about_action = self.create_action("&About", 
@@ -144,26 +160,38 @@ class RadarConsole(QMainWindow):
         return action
 
     def connect_scope(self):
-        msg = """
-        Placeholder for the dialog box that will setup the scope
-        """
-        QMessageBox.about(self, "About the demo", msg.strip())
-        self.status_text.setText("(Connecting to scope)")
+        self.config_file = QFileDialog.getOpenFileName(self, 
+            "Choose config file")
+        pico_serial_num, radar_scope_params = read_config(self.config_file)
+        # msg = """
+        # Placeholder for the dialog box that will setup the scope
+        # """
+        # QMessageBox.about(self, "About the demo", msg.strip())
+        # self.status_text.setText("(Connecting to scope)")
         self.radar_scope = TestRadarScope()
         self.acq_thread = None
         self.proc_thread = None
         self.status_text.setText("Ready")
 
-    def set_output_file(self):
-        self.status_text.setText("(Choosing output file)")
-        time.sleep(2)
+    def set_output_dir(self):
+        self.output_dir = QFileDialog.getExistingDirectory(self, 
+            "Set output directory")
+        self.file_text.setText(self.output_dir)
 
     def save_file(self):
-        time.sleep(1)
+        filename = "sweep_" + self.timestamp + ".swp"
+        filename = os.path.join(self.output_dir, filename)
+        self.file_text.setText(filename)
+        # output_file = open(filename, "wb")
+        # # Should have more metadata in here
+        # output_file.write(self.data)
+        # output_file.close()
 
     def capture_sweep(self, on):
         if on:
-            self.timestamp = time.time()
+            if self.radar_scope is None:
+                self.connect_scope()
+            self.timestamp = time.strftime(TIMESTAMP_FMT)
             self.data = self.radar_scope.get_trimmed_sweep()
             self.update_ppi()
             self.save_file()
@@ -179,6 +207,8 @@ class RadarConsole(QMainWindow):
             self.stopRecording()
 
     def startRecording(self):
+        if self.radar_scope is None:
+            self.connect_scope()
         if self.acq_thread is not None: # i.e., if we're already recording
             return
         self.recording = True
@@ -203,3 +233,42 @@ class RadarConsole(QMainWindow):
         self.status_text.setStyleSheet('color: black')
         self.recording = False
         self.capture_button.setChecked(False)
+
+def read_config(filename):
+    return (1,2)
+
+# class RadarScopeConfigDialog(QDialog):
+#     """docstring for RadarScopeConfigDialog"""
+#     def __init__(self, parent=None):
+#         super(RadarScopeConfigDialog, self).__init__(parent)
+#         layout = QVBoxLayout()
+
+#         # set up form to configure picoscope
+#         pico_form = QFormLayout()
+#         serial_line_edit = QLineEdit()
+#         video_chan_combo_box = QComboBox()
+#         heading_chan_combo_box = QComboBox()
+#         pico_form.addRow("Serial #", serial_line_edit)
+#         pico_form.addRow("Video channel", video_chan_combo_box)
+#         pico_form.addRow("Heading channel", heading_chan_combo_box)
+
+#         #set up form to configure radar
+#         radar_form = QFormLayout()
+#         rotation_period_spin_box = QDoubleSpinBox()
+#         max_range_spin_box = QSpinBox()
+#         radar_form.addRow("Rotation period (s)", rotation_period_spin_box)
+#         radar_form.addRow("Max range (m)", max_range_spin_box)
+
+#         pico_box = QGroupBox("PicoScope")
+#         radar_box = QGroupBox("Radar")
+#         pico_box.setLayout(pico_form)
+#         radar_box.setLayout(radar_form)
+
+#         self.buttons = QDialogButtonBox(
+#             QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
+#             Qt.Horizontal, self)
+
+#         layout.addWidget(pico_box)
+#         layout.addWidget(radar_box)
+#         layout.addWidget(self.buttons)
+
