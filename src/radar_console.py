@@ -11,7 +11,7 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as NavigationToolbar
 from matplotlib.figure import Figure
 
-from radar_scope import TestRadarScope
+from radar_scope import TestRadarScope, TestPs3000a
 from radar_scope_threads import DataAcquisitionThread, DataProcessingThread
 
 # Constants
@@ -163,15 +163,23 @@ class RadarConsole(QMainWindow):
         return action
 
     def connect_scope(self):
-        self.config_file = QFileDialog.getOpenFileName(self, 
-            "Choose config file")
-        pico_serial_num, radar_scope_params = read_config(self.config_file)
-        # msg = """
-        # Placeholder for the dialog box that will setup the scope
-        # """
-        # QMessageBox.about(self, "About the demo", msg.strip())
-        # self.status_text.setText("(Connecting to scope)")
-        self.radar_scope = TestRadarScope()
+        # choose configuration file
+        try:
+            self.config_file = QFileDialog.getOpenFileName(self, 
+                "Choose config file")
+            pico_serial_num, params_dict = read_config(self.config_file)
+            file_found = True
+        except:
+            QMessageBox.about(self, "File error", "File not in expected format")
+            return 0
+        # Open picoscope
+        try:
+            picoscope = TestPs3000a(pico_serial_num) #ps3000a.PS3000a(pico_serial_num)
+        except:
+            msg = "Could not connect to PicoScope " + pico_serial_num
+            QMessageBox.about(self, "Connection error", msg)
+            return 0
+        self.radar_scope = TestRadarScope(picoscope, **params_dict)
         self.data_q = Queue.Queue()
         self.acq_thread = DataAcquisitionThread(self.data_q, self.radar_scope)
         self.proc_thread = DataProcessingThread(self.data_q, self.radar_scope, self)
@@ -180,6 +188,7 @@ class RadarConsole(QMainWindow):
         self.acq_thread.start()
         self.proc_thread.start()
         self.status_text.setText("Connected")
+        return 1
 
     def disconnect_scope(self):
         if self.acq_thread is not None:
@@ -209,7 +218,10 @@ class RadarConsole(QMainWindow):
     def capture_sweep(self, on):
         if on:
             if self.radar_scope is None:
-                self.connect_scope()
+                connection_success = self.connect_scope()
+                if not connection_success:
+                    self.capture_button.setChecked(False)
+                    return
             self.timestamp = time.strftime(TIMESTAMP_FMT)
             self.data = self.radar_scope.get_trimmed_sweep()
             self.update_ppi()
@@ -227,7 +239,10 @@ class RadarConsole(QMainWindow):
 
     def startRecording(self):
         if self.radar_scope is None:
-            self.connect_scope()
+            connection_success = self.connect_scope()
+            if not connection_success:
+                self.recordBtn.setChecked(False)
+                return
         self.recording = True
         self.capture_button.setChecked(True)
         self.status_text.setText("Recording")
@@ -241,7 +256,9 @@ class RadarConsole(QMainWindow):
         self.capture_button.setChecked(False)
 
 def read_config(filename):
-    return (1,2)
+    dict = eval(open(filename).read().replace('\n', ''))
+    pico_serial = dict.pop("pico_serial")
+    return pico_serial, dict
 
 # class RadarScopeConfigDialog(QDialog):
 #     """docstring for RadarScopeConfigDialog"""

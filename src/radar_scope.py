@@ -145,9 +145,18 @@ class RadarScope(object):
 		'''
 		self.ps.close()
 
+class TestPs3000a(object):
+	"""docstring for TestPs3000a"""
+	def __init__(self, serial):
+		super(TestPs3000a, self).__init__()
+		self.serial = serial
+		
 class TestRadarScope(object):
 	"""dummy class with same methods as RadarScope for testing"""
-	def __init__(self):
+	def __init__(self, ps, rotation_period=2.4, pulse_rate=2100,
+		range_resolution=10.0, max_range=1e3, video_chan="A", 
+		video_voltage=[-0.1, 2], trigger_voltage=0.4,
+		heading_chan="B", heading_voltage=[1, -10], data_dir="."):
 		super(TestRadarScope, self).__init__()
 
 	def run_sweep(self):
