@@ -15,12 +15,10 @@ class DataAcquisitionThread(threading.Thread):
 		self.alive.set()
 
 	def run(self):
-		dt = 2.0 #2100.0
 		while self.alive.isSet():
 			timestamp = time.strftime(TIMESTAMP_FMT)
 			self.radar_scope.capture_sweep()
 			self.data_q.put((timestamp, self.radar_scope.get_trimmed_sweep()))
-			time.sleep(dt)
 
 	def join(self, timeout=None):
 		self.alive.clear()

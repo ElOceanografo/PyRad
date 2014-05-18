@@ -172,8 +172,9 @@ class TestRadarScope(object):
 		pass
 
 	def get_trimmed_sweep(self):
-		data = np.random.randn(400, 400)
+		data = np.random.randn(1000, 1000)
 		data[:, 0] = 2
+		time.sleep(3)
 		return data
 
 	def to_file(self):

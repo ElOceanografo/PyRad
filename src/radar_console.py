@@ -38,16 +38,10 @@ class RadarConsole(QMainWindow):
         self.recording = False
 
     def on_about(self):
-        msg = """ A demo of using PyQt with matplotlib:
-        
-         * Use the matplotlib navigation bar
-         * Add values to the text box and press Enter (or click "Draw")
-         * Show or hide the grid
-         * Drag the slider to modify the width of the bars
-         * Save the plot to a file using the File menu
-         * Click on a bar to receive an informative message
+        msg = """
+        WE'VE GOT A THING THAT'S CALLED RADAR LOVE\nWE'VE GOT A LINE IN THE SKY\nRADAR LOVE
         """
-        QMessageBox.about(self, "About the demo", msg.strip())
+        QMessageBox.about(self, "ABOUT", msg.strip())
 
     def update_clock(self):
         self.time_text.setText(time.strftime(CLOCK_FMT))
@@ -59,12 +53,14 @@ class RadarConsole(QMainWindow):
         # if self.data is None:
         #     self.data = self.radar_scope.get_trimmed_sweep()
         theta = sp.linspace(0, 2 * sp.pi, self.data.shape[0])
-        theta = sp.hstack((theta[100:400], theta[0:100]))
+        # theta = sp.hstack((theta[100:400], theta[0:100]))
         R = sp.arange(self.data.shape[1])
-
+        sub_R = 1
+        sub_theta = 5
         # clear the axes and redraw the plot anew
         self.axes.clear()        
-        self.axes.pcolormesh(theta, R, self.data)
+        self.axes.pcolormesh(theta[::sub_theta], R[::sub_R], 
+            self.data[::sub_theta, ::sub_R])
         self.canvas.draw()
     
     def create_main_frame(self):
