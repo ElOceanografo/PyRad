@@ -25,7 +25,7 @@ class RadarConsole(QMainWindow):
         self.create_menu()
         self.create_main_frame()
         self.create_status_bar()
-        #self.connect_scope()
+        # self.connect_scope()
         # self.update_ppi()
         self.radar_scope = None
         self.data = None
@@ -222,9 +222,6 @@ class RadarConsole(QMainWindow):
                 if not connection_success:
                     self.capture_button.setChecked(False)
                     return
-            self.timestamp = time.strftime(TIMESTAMP_FMT)
-            self.data = self.radar_scope.get_trimmed_sweep()
-            self.update_ppi()
             self.save_file()
             self.capture_button.setChecked(False)
         else:
