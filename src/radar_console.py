@@ -10,6 +10,7 @@ matplotlib.rcParams['backend.qt4']='PyQt4'
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as NavigationToolbar
 from matplotlib.figure import Figure
+from matplotlib import cm
 
 from radar_scope import TestRadarScope, TestPs3000a
 from radar_scope_threads import DataAcquisitionThread, DataProcessingThread
@@ -30,6 +31,7 @@ class RadarConsole(QMainWindow):
         self.radar_scope = None
         self.data = None
         self.timestamp = None
+        self.cmap = cm.jet
         self.output_dir = os.getcwd()
         self.file_text.setText(self.output_dir)
         self.timer = QTimer(self)
@@ -57,22 +59,22 @@ class RadarConsole(QMainWindow):
         R = sp.arange(self.data.shape[1])
         sub_R = 1
         sub_theta = 5
-        # clear the axes and redraw the plot anew
+        # clear the axes and redraw the plot
         self.axes.clear()        
         self.axes.pcolormesh(theta[::sub_theta], R[::sub_R], 
-            self.data[::sub_theta, ::sub_R])
+            self.data[::sub_theta, ::sub_R], vmin=self.vmin_spin_box.value(),
+            vmax=self.vmax_spin_box.value(), cmap=self.cmap)
         self.canvas.draw()
     
     def create_main_frame(self):
         self.main_frame = QWidget()
-        # Create the mpl Figure and FigCanvas objects. 
+        # Create the mpl Figure and FigCanvas objects.
         self.fig = Figure()
         self.canvas = FigureCanvas(self.fig)
         self.canvas.setParent(self.main_frame)
         self.axes = self.fig.add_subplot(111, polar=True)   
         # Create the navigation toolbar, tied to the canvas
         self.mpl_toolbar = NavigationToolbar(self.canvas, self.main_frame)
-        
 
         # control panel
         self.recordBtn = QPushButton("&Record", self)
@@ -83,11 +85,35 @@ class RadarConsole(QMainWindow):
         self.capture_button.setCheckable(True)
         self.capture_button.clicked[bool].connect(self.capture_sweep) 
 
+        self.colormap_combo_box = QComboBox()
+        for cmap in ["jet", "spectral", "copper"]:
+            self.colormap_combo_box.addItem(cmap)
+        self.connect(self.colormap_combo_box, SIGNAL("activated(QString)"), 
+            self.set_cmap)
+
+        self.vmin_spin_box = QDoubleSpinBox()
+        self.vmax_spin_box = QDoubleSpinBox()
+        for w in [self.vmin_spin_box, self.vmax_spin_box]:
+            w.setMinimum(-10.0)
+            w.setMaximum(10.0)
+            self.connect(w, SIGNAL("valueChanged(double)"), self.set_cmap_range)
+        self.vmin_spin_box.setValue(-2.0)
+        self.vmax_spin_box.setValue(2.0)
+        vmin_label = QLabel("Scale min")
+        vmax_label = QLabel("Scale max")
+        colormap_layout = QGridLayout()
+        colormap_layout.addWidget(vmin_label, 0, 0)
+        colormap_layout.addWidget(vmax_label, 0, 1)
+        colormap_layout.addWidget(self.vmin_spin_box, 1, 0)
+        colormap_layout.addWidget(self.vmax_spin_box, 1, 1)
+
+
         # Layout with box sizers
         controlbox = QVBoxLayout()
-        for w in [self.recordBtn, self.capture_button]:
+        for w in [self.recordBtn, self.capture_button, self.colormap_combo_box]:
             w.setFixedWidth(200)
             controlbox.addWidget(w)
+        controlbox.addLayout(colormap_layout)
         controlbox.addStretch(1)
 
         plotbox = QVBoxLayout()
@@ -201,6 +227,15 @@ class RadarConsole(QMainWindow):
         self.output_dir = QFileDialog.getExistingDirectory(self, 
             "Set output directory")
         self.file_text.setText(self.output_dir)
+
+    def set_cmap(self):
+        self.cmap = cm.get_cmap(str(self.colormap_combo_box.currentText()))
+
+    def set_cmap_range(self):
+        self.vmin_spin_box.setMaximum(self.vmax_spin_box.value())
+        self.vmax_spin_box.setMinimum(self.vmin_spin_box.value())
+        self.vmin = self.vmin_spin_box.value()
+        self.vmax = self.vmax_spin_box.value()
 
     def save_file(self):
         filename = "sweep_" + self.timestamp + ".swp"
