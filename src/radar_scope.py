@@ -1,11 +1,11 @@
-from pico_python import picoscope
+from pico_python.picoscope import ps3000a
 import numpy as np
 import time
 from ctypes import *
 import os
 
 # collect 20% more samples than nominally necessary
-SAMPLE_SAFETY_MARGIN = 1.2
+SAMPLE_SAFETY_MARGIN = 1.26
 LIGHTSPEED = 2.99e8
 
 
@@ -14,7 +14,7 @@ class RadarScope(object):
 
 	def __init__(self, ps, rotation_period=2.4, pulse_rate=2100,
 		range_resolution=10.0, max_range=1e3, video_chan="A", 
-		video_voltage=[-0.1, 2], trigger_voltage=0.4,
+		video_voltage=[-0.1, 2], trigger_voltage=0.6,
 		heading_chan="B", heading_voltage=[1, -10], data_dir="."):
 		'''
 		Set up interface to PicoScope for radar data collection.
@@ -116,6 +116,7 @@ class RadarScope(object):
 		if dir is None:
 			dir = self.data_dir
 		filename = "sweep_" + self.last_sweep_time + ".swp"
+		filename = os.path.join(dir, filename)
 		output_file = open(filename, "wb")
 		output_file.write(self.video_buffer)
 		output_file.write(self.heading_buffer)
@@ -191,20 +192,22 @@ class TestRadarScope(object):
 if __name__ == '__main__':
 	
 	import matplotlib.pyplot as plt
-	picoscope = reload(picoscope)
-	from picoscope import ps3000a
+	# picoscope = reload(picoscope)
+	# from picoscope import ps3000a
 	ps3000a = reload(ps3000a)
 
 	SERIAL_NUM = 'AR911/011\x00'
 	ps = ps3000a.PS3000a(SERIAL_NUM)
 
-	rscope = RadarScope(ps, max_range=1e3, range_resolution=5)
+	rscope = RadarScope(ps, max_range=1e3, range_resolution=5, trigger_voltage=1.5,
+		data_dir="E:\\GGI_Data")
 	
 	rscope.capture_sweep()
-	# rscope.to_file()
-	#rscope.record(10, 5)
+	#rscope.to_file(echo=True)
+	rscope.record(10, 5)
+
+	rscope.disconnect()
 
 	plt.imshow(rscope.video_buffer, aspect="auto")
 	plt.show()
 
-	rscope.disconnect()
