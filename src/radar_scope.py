@@ -8,6 +8,7 @@ import os
 # collect 5% more samples than nominally necessary
 SAMPLE_SAFETY_MARGIN = 1.05
 LIGHTSPEED = 2.99e8
+METADATA_LENGTH = 200
 
 
 class RadarScope(object):
@@ -146,6 +147,16 @@ class RadarScope(object):
 		i1, i2 = self.zero_heading_indices(threshold)
 		self.trimmed_sweep = self.video_buffer[i1:i2, :]#((self.n_captures, -1))
 
+	def metadata(self):
+		fields = ["last_sweep_time", "max_range", "range_resolution", 
+			"pulse_rate", "samples_per_segment", "rotation_period"]
+		metadata_string = ""
+		for f in fields:
+			metadata_string = metadata_string + f + " : "
+			metadata_string = metadata_string + str(self.__getattribute__(f)) + ";\n"
+		metadata_string += " " * (METADATA_LENGTH - len(metadata_string))
+		return metadata_string
+
 
 	def to_file(self, dir=None, echo=False):
 		t1 = time.time()
@@ -154,6 +165,7 @@ class RadarScope(object):
 		filename = "sweep_" + self.last_sweep_time + ".swp"
 		filename = os.path.join(dir, filename)
 		output_file = open(filename, "wb")
+		output_file.write(self.metadata())
 		output_file.write(self.trimmed_sweep)
 		# output_file.write(self.heading_buffer)
 		output_file.close()
@@ -172,8 +184,11 @@ class RadarScope(object):
 			while time.time() - t1 < minimum_interval:
 				time.sleep(0)
 			t1 = time.time()
-			self.capture_trimmed_sweep()
-			self.to_file(echo=True)
+			try:
+				self.capture_trimmed_sweep()
+				self.to_file(echo=True)
+			except:
+				print "failed to capture " + self.last_sweep_time
 			i += 1
 
 	def disconnect(self):
@@ -235,14 +250,14 @@ if __name__ == '__main__':
 	SERIAL_NUM = 'AR911/011\x00'
 	ps = ps3000a.PS3000a(SERIAL_NUM)
 
-	max_range = 10e3
-	rscope = RadarScope(ps, max_range=max_range, range_resolution=10.0,
+	max_range = 5e3
+	rscope = RadarScope(ps, max_range=max_range, range_resolution=6.0,
 		trigger_voltage=1.5, data_dir="E:\\GGI_Data\\20140526")
 	
 	#rscope.capture_sweep()
 	#rscope.to_file(echo=True)
-	rscope.record(10, 5)
-	#rscope.capture_trimmed_sweep()
+	rscope.record(180, 10)
+	# rscope.capture_trimmed_sweep()
 	# rscope.wait_zero_heading()
 	rscope.disconnect()
 
@@ -253,7 +268,8 @@ if __name__ == '__main__':
 	fig = plt.figure()
 	ax = fig.add_subplot(111, polar=True)
 
-	theta = sp.linspace(0, 2 * sp.pi, data_to_plot.shape[0])
+	theta = sp.linspace(2 * sp.pi, 0, data_to_plot.shape[0])
 	R = sp.linspace(0, max_range, data_to_plot.shape[1])
-	ax.pcolormesh(theta, R, data_to_plot.T, vmin=0)
+	pcm = ax.pcolormesh(theta, R, data_to_plot.T)
+	plt.colorbar(pcm)
 	plt.show()
