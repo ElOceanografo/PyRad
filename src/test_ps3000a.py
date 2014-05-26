@@ -22,7 +22,8 @@ c = 3e8
 
 # rapid block mode
 
-ps.setChannel(channel="A", coupling="DC", VRange=1)
+ps.setChannel(channel="A", coupling="DC", VRange=2)
+ps.setChannel(channel="B", coupling="DC", VRange=2)
 
 n_captures = 2300 * 3 #int(600 * 1.4)
 sample_interval = 5 / 3e8
