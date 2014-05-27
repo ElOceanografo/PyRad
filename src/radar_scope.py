@@ -4,6 +4,7 @@ import scipy as sp
 import time
 from ctypes import *
 import os
+import threading
 
 # collect 5% more samples than nominally necessary
 SAMPLE_SAFETY_MARGIN = 1.05
@@ -141,11 +142,14 @@ class RadarScope(object):
 		i1, i2 = sp.where(sp.diff(heading) > threshold)[0][0:2]
 		return i1, i2
 
+	def trim_current_sweep(self, threshold=1000):
+		i1, i2 = self.zero_heading_indices(threshold)
+		self.trimmed_sweep = self.video_buffer[i1:i2, :]#((self.n_captures, -1))
+
 	def capture_trimmed_sweep(self, downsample_ratio=0, downsample_mode=0,
 		threshold=1000):
 		self.capture_sweep(downsample_ratio, downsample_mode)
-		i1, i2 = self.zero_heading_indices(threshold)
-		self.trimmed_sweep = self.video_buffer[i1:i2, :]#((self.n_captures, -1))
+		self.trim_current_sweep()
 
 	def metadata(self):
 		fields = ["last_sweep_time", "max_range", "range_resolution", 
@@ -186,9 +190,12 @@ class RadarScope(object):
 			t1 = time.time()
 			try:
 				self.capture_trimmed_sweep()
-				self.to_file(echo=True)
+				# self.to_file(echo=True)
 			except:
 				print "failed to capture " + self.last_sweep_time
+			rec_thread = threading.Thread(target=self.to_file, kwargs={"echo" : True})
+			rec_thread.setDaemon(True)
+			rec_thread.start()
 			i += 1
 
 	def disconnect(self):
@@ -223,11 +230,11 @@ class TestRadarScope(object):
 	def zero_heading_indices(self):
 		pass
 
-	def get_trimmed_sweep(self):
-		data = np.random.randn(1000, 1000)
+	def capture_trimmed_sweep(self):
+		data = np.random.randn(400, 400)
 		data[:, 0] = 2
 		time.sleep(3)
-		return data
+		self.trimmed_sweep = data
 
 	def to_file(self):
 		pass
@@ -252,11 +259,11 @@ if __name__ == '__main__':
 
 	max_range = 5e3
 	rscope = RadarScope(ps, max_range=max_range, range_resolution=6.0,
-		trigger_voltage=1.5, data_dir="E:\\GGI_Data\\20140526")
+		trigger_voltage=1.5, data_dir="E:\\GGI_Data\\20140527")
 	
 	#rscope.capture_sweep()
 	#rscope.to_file(echo=True)
-	rscope.record(180, 10)
+	rscope.record(500, 5)
 	# rscope.capture_trimmed_sweep()
 	# rscope.wait_zero_heading()
 	rscope.disconnect()

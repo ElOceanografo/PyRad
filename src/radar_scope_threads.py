@@ -1,6 +1,7 @@
 import threading
 from Queue import Queue
 import time
+import sys
 import numpy as np
 
 TIMESTAMP_FMT = "%Y%m%d_%H%M%S"
@@ -15,10 +16,11 @@ class DataAcquisitionThread(threading.Thread):
 		self.alive.set()
 
 	def run(self):
+		threading.Thread(target=sys.stdout.write, args=("foo",)).start()
 		while self.alive.isSet():
 			timestamp = time.strftime(TIMESTAMP_FMT)
-			self.radar_scope.capture_sweep()
-			self.data_q.put((timestamp, self.radar_scope.get_trimmed_sweep()))
+			self.radar_scope.capture_trimmed_sweep()
+			self.data_q.put((timestamp, self.radar_scope.trimmed_sweep))
 
 	def join(self, timeout=None):
 		self.alive.clear()
