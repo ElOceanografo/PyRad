@@ -3,6 +3,7 @@ import scipy as sp
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 import Queue
+import threading
 
 import matplotlib
 matplotlib.use('Qt4Agg')
@@ -62,7 +63,7 @@ class RadarConsole(QMainWindow):
         # clear the axes and redraw the plot
         self.axes.clear()        
         self.axes.pcolormesh(theta[::sub_theta], R[::sub_R], 
-            self.data[::sub_theta, ::sub_R], vmin=self.vmin_spin_box.value(),
+            self.data[::sub_theta, ::sub_R].T, vmin=self.vmin_spin_box.value(),
             vmax=self.vmax_spin_box.value(), cmap=self.cmap)
         self.canvas.draw()
     
