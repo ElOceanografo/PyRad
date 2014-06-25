@@ -16,7 +16,6 @@ class DataAcquisitionThread(threading.Thread):
 		self.alive.set()
 
 	def run(self):
-		threading.Thread(target=sys.stdout.write, args=("foo",)).start()
 		while self.alive.isSet():
 			timestamp = time.strftime(TIMESTAMP_FMT)
 			self.radar_scope.capture_trimmed_sweep()

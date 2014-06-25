@@ -13,7 +13,8 @@ from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as Naviga
 from matplotlib.figure import Figure
 from matplotlib import cm
 
-from radar_scope import TestRadarScope, TestPs3000a
+# from radar_scope import TestRadarScope, TestPs3000a
+from radar_scope import RadarScope, ps3000a
 from radar_scope_threads import DataAcquisitionThread, DataProcessingThread
 
 # Constants
@@ -55,15 +56,16 @@ class RadarConsole(QMainWindow):
         """
         # if self.data is None:
         #     self.data = self.radar_scope.get_trimmed_sweep()
-        theta = sp.linspace(0, 2 * sp.pi, self.data.shape[0])
-        # theta = sp.hstack((theta[100:400], theta[0:100]))
-        R = sp.arange(self.data.shape[1])
         sub_R = 1
         sub_theta = 5
+        data_to_plot = self.data[::sub_theta, ::sub_R]
+        theta = sp.linspace(2 * sp.pi, 0.0, data_to_plot.shape[0])
+        # theta = sp.hstack((theta[100:400], theta[0:100]))
+        R = sp.arange(data_to_plot.shape[1])
+
         # clear the axes and redraw the plot
         self.axes.clear()        
-        self.axes.pcolormesh(theta[::sub_theta], R[::sub_R], 
-            self.data[::sub_theta, ::sub_R].T, vmin=self.vmin_spin_box.value(),
+        self.axes.pcolormesh(theta, R, data_to_plot.T, vmin=self.vmin_spin_box.value(),
             vmax=self.vmax_spin_box.value(), cmap=self.cmap)
         self.canvas.draw()
     
@@ -95,11 +97,11 @@ class RadarConsole(QMainWindow):
         self.vmin_spin_box = QDoubleSpinBox()
         self.vmax_spin_box = QDoubleSpinBox()
         for w in [self.vmin_spin_box, self.vmax_spin_box]:
-            w.setMinimum(-10.0)
-            w.setMaximum(10.0)
+            w.setMinimum(-1000.0)
+            w.setMaximum(30000.0)
             self.connect(w, SIGNAL("valueChanged(double)"), self.set_cmap_range)
-        self.vmin_spin_box.setValue(-2.0)
-        self.vmax_spin_box.setValue(2.0)
+        self.vmin_spin_box.setValue(0.0)
+        self.vmax_spin_box.setValue(28000.0)
         vmin_label = QLabel("Scale min")
         vmax_label = QLabel("Scale max")
         colormap_layout = QGridLayout()
@@ -197,12 +199,14 @@ class RadarConsole(QMainWindow):
             return 0
         # Open picoscope
         try:
-            picoscope = TestPs3000a(pico_serial_num) #ps3000a.PS3000a(pico_serial_num)
+            # picoscope = TestPs3000a(pico_serial_num) #ps3000a.PS3000a(pico_serial_num)
+            picoscope = ps3000a.PS3000a(pico_serial_num)
         except:
             msg = "Could not connect to PicoScope " + pico_serial_num
             QMessageBox.about(self, "Connection error", msg)
             return 0
-        self.radar_scope = TestRadarScope(picoscope, **params_dict)
+        # self.radar_scope = TestRadarScope(picoscope, **params_dict)
+        self.radar_scope = RadarScope(picoscope, **params_dict)
         self.data_q = Queue.Queue()
         self.acq_thread = DataAcquisitionThread(self.data_q, self.radar_scope)
         self.proc_thread = DataProcessingThread(self.data_q, self.radar_scope, self)
