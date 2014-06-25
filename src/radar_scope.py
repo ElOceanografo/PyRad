@@ -1,6 +1,7 @@
 from pico_python.picoscope import ps3000a
 import numpy as np
 import scipy as sp
+from scipy.io import netcdf
 import time
 from ctypes import *
 import os
@@ -77,8 +78,9 @@ class RadarScope(object):
 		self.ps.setSamplingInterval(self.sample_interval, self.capture_duration)
 		
 		self.ps.setSimpleTrigger(self.video_chan, threshold_V=self.trigger_voltage)
+		# self.ps.setSimpleTrigger("External", direction="Falling", threshold_V=-0.2, timeout_ms=0)
 		self.max_samples_per_segment = self.ps.memorySegments(self.n_captures)
-		self.samples_per_segment = int(self.capture_duration / self.sample_interval)
+		self.samples_per_segment = self.ps.noSamples#int(self.capture_duration / self.sample_interval)
 		self.ps.setNoOfCaptures(self.n_captures)
 
 
@@ -118,9 +120,24 @@ class RadarScope(object):
 		memory.
 		'''
 		t1 = time.time()
-		ps.getDataRawBulk(channel=self.video_chan, data=self.video_buffer)
-		ps.getDataRawBulk(channel=self.heading_chan, data=self.heading_buffer)
+		self.ps.getDataRawBulk(channel=self.video_chan, data=self.video_buffer)
+		self.ps.getDataRawBulk(channel=self.heading_chan, data=self.heading_buffer)
 		print "Time to transfer data: ", str(time.time() - t1)
+
+	def transfer_data2(self, threshold=1000, skip=2, downsample_ratio=0, 
+			downsample_mode=0):
+		heading = sp.zeros(self.n_captures / skip + 1)
+		for i, segment in enumerate(range(0, self.n_captures, skip)):
+			heading_tuple = self.ps.getDataRaw(self.heading_chan, numSamples=1,
+				segmentIndex=segment)
+			heading[i] = heading_tuple[0][0]
+		print "transferred heading"
+		i1, i2 = sp.where(sp.diff(heading) > threshold)[0][0:2]
+		print "found heading zeros"
+		for i, segment in enumerate(range(i1, i2, skip)):
+			self.ps.getDataRaw(self.video_chan, segmentIndex=segment, 
+				data=self.video_buffer[i, :])
+
 
 	def capture_sweep(self, downsample_ratio=0, downsample_mode=0):
 		'''
@@ -177,26 +194,66 @@ class RadarScope(object):
 			print filename
 		print "Time to write data: ", str(time.time() - t1)
 
-	def record(self, n_sweeps=1, minimum_interval=5):
+	def to_netcdf_file(self, dir=None, echo=False):
+		t1 = time.time()
+		if dir is None:
+			dir = self.data_dir
+		filename = "sweep_" + self.last_sweep_time + ".nc"
+		filename = os.path.join(dir, filename)
+		nc_file = netcdf.netcdf_file(filename, 'w')
+		n_range = self.trimmed_sweep.shape[1]
+		n_pulse = self.trimmed_sweep.shape[0]
+		pulse_dim = nc_file.createDimension("pulse_number", n_pulse)
+		pulse_var = nc_file.createVariable("pulse_number", int, ("pulse_number", ))
+		pulse_var.units = "pulse_number"
+		range_dim = nc_file.createDimension("range", n_range)
+		range_var = nc_file.createVariable("range", float, ("range", ))
+		range_var.units = "meters"
+		amplitude = nc_file.createVariable("amplitude", self.trimmed_sweep.dtype,
+			("pulse_number", "range"))
+		range_var[:] = sp.arange(0, self.range_resolution * n_range, self.range_resolution)
+		pulse_var[:] = sp.arange(n_pulse, dtype=int)
+		amplitude[:] = self.trimmed_sweep
+		amplitude.units = "ADC_counts"
+		amplitude.max_counts = self.ps.getMaxValue()
+		amplitude.min_counts = self.ps.getMinValue()
+		nc_file.max_range = self.max_range
+		nc_file.range_resolution = self.range_resolution
+		nc_file.sweep_time = self.last_sweep_time
+		nc_file.pulse_rate_nominal = self.pulse_rate
+		nc_file.rotation_period_nominal = self.rotation_period
+		nc_file.samples_per_segment = self.samples_per_segment
+		nc_file.close()
+		if echo:
+			print filename
+			print "Time to write data: ", str(time.time() - t1)
+
+
+	def record(self, minimum_interval=5, netcdf=True):
 		'''
-		Capture n_sweeps sweeps, waiting no less than minimum_interval
+		Record sweeps continuously, waiting no less than minimum_interval
 		in between them.
 		'''
 		i = 0
 		t1 = minimum_interval + 1
-		while i < n_sweeps:
-			while time.time() - t1 < minimum_interval:
-				time.sleep(0)
-			t1 = time.time()
+		while True:#
 			try:
-				self.capture_trimmed_sweep()
-				# self.to_file(echo=True)
-			except:
-				print "failed to capture " + self.last_sweep_time
-			rec_thread = threading.Thread(target=self.to_file, kwargs={"echo" : True})
-			rec_thread.setDaemon(True)
-			rec_thread.start()
-			i += 1
+				while time.time() - t1 < minimum_interval:
+					time.sleep(0)
+				t1 = time.time()
+				try:
+					self.capture_trimmed_sweep()
+				except:
+					print "failed to capture " + self.last_sweep_time
+				if netcdf:
+					rec_thread = threading.Thread(target=self.to_netcdf_file, kwargs={"echo" : True})
+				else:
+					rec_thread = threading.Thread(target=self.to_file, kwargs={"echo" : True})
+				rec_thread.setDaemon(True)
+				rec_thread.start()
+				print "\n"
+			except KeyboardInterrupt:
+				break
 
 	def disconnect(self):
 		'''
@@ -215,7 +272,7 @@ class TestRadarScope(object):
 	def __init__(self, ps, rotation_period=2.4, pulse_rate=2100,
 		range_resolution=10.0, max_range=1e3, video_chan="A", 
 		video_voltage=[-0.1, 2], trigger_voltage=0.4,
-		heading_chan="B", heading_voltage=[1, -10], data_dir="."):
+		heading_chan="B", heading_voltage=[1, -10], heading_threshold=-1.5, data_dir="."):
 		super(TestRadarScope, self).__init__()
 
 	def run_sweep(self):
@@ -250,33 +307,46 @@ class TestRadarScope(object):
 if __name__ == '__main__':
 	
 	import matplotlib.pyplot as plt
+	import datetime as dt
+	from string import zfill
 	# picoscope = reload(picoscope)
 	# from picoscope import ps3000a
+	now = dt.datetime.now()
+	data_dir = "C:\\" + str(now.year) + zfill(now.month, 2) + zfill(now.day, 2)
+	if not os.path.exists(data_dir):
+		os.mkdir(data_dir)
+
 	ps3000a = reload(ps3000a)
 
 	SERIAL_NUM = 'AR911/011\x00'
 	ps = ps3000a.PS3000a(SERIAL_NUM)
 
 	max_range = 5e3
-	rscope = RadarScope(ps, max_range=max_range, range_resolution=6.0,
-		trigger_voltage=1.5, data_dir="E:\\GGI_Data\\20140527")
-	
-	#rscope.capture_sweep()
-	#rscope.to_file(echo=True)
-	rscope.record(500, 5)
+	rscope = RadarScope(ps, max_range=max_range, range_resolution=6.0, pulse_rate=2100,
+		trigger_voltage=1.5, data_dir=data_dir)
+
+	# rscope.run_sweep()
+	# rscope.ps.waitReady()
+	# print "transferring"
+	# rscope.transfer_data2()
+	# print "done"
+
+	# rscope.capture_sweep()
 	# rscope.capture_trimmed_sweep()
+	# rscope.to_netcdf_file(dir=".", echo=True)
+	rscope.record()
 	# rscope.wait_zero_heading()
 	rscope.disconnect()
 
-	# plt.imshow(rscope.trimmed_sweep, aspect="auto")
+	# plt.imshow(rscope.video_buffer, aspect="auto")
 	# plt.show()
 
-	data_to_plot = rscope.trimmed_sweep[::4, :]
-	fig = plt.figure()
-	ax = fig.add_subplot(111, polar=True)
+	# data_to_plot = rscope.trimmed_sweep[::4, :]
+	# fig = plt.figure()
+	# ax = fig.add_subplot(111, polar=True)
 
-	theta = sp.linspace(2 * sp.pi, 0, data_to_plot.shape[0])
-	R = sp.linspace(0, max_range, data_to_plot.shape[1])
-	pcm = ax.pcolormesh(theta, R, data_to_plot.T)
-	plt.colorbar(pcm)
-	plt.show()
+	# theta = sp.linspace(2 * sp.pi, 0, data_to_plot.shape[0])
+	# R = sp.linspace(0, max_range, data_to_plot.shape[1])
+	# pcm = ax.pcolormesh(theta, R, data_to_plot.T)
+	# plt.colorbar(pcm)
+	# plt.show()
