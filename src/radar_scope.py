@@ -301,7 +301,7 @@ if __name__ == '__main__':
 	# picoscope = reload(picoscope)
 	# from picoscope import ps3000a
 	now = dt.datetime.now()
-	data_dir = "C:\\test"#"C:\\" + str(now.year) + zfill(now.month, 2) + zfill(now.day, 2)
+	data_dir = "C:\\" + str(now.year) + zfill(now.month, 2) + zfill(now.day, 2)
 	if not os.path.exists(data_dir):
 		os.mkdir(data_dir)
 
