@@ -121,22 +121,9 @@ class RadarScope(object):
 		'''
 		t1 = time.time()
 		self.ps.getDataRawBulk(channel=self.video_chan, data=self.video_buffer)
-		self.ps.getDataRawBulk(channel=self.heading_chan, data=self.heading_buffer)
+		self.ps.getDataRawBulk(channel=self.heading_chan, data=self.heading_buffer,
+			numSamples=1)
 		print "Time to transfer data: ", str(time.time() - t1)
-
-	def transfer_data2(self, threshold=1000, skip=2, downsample_ratio=0, 
-			downsample_mode=0):
-		heading = sp.zeros(self.n_captures / skip + 1)
-		for i, segment in enumerate(range(0, self.n_captures, skip)):
-			heading_tuple = self.ps.getDataRaw(self.heading_chan, numSamples=1,
-				segmentIndex=segment)
-			heading[i] = heading_tuple[0][0]
-		print "transferred heading"
-		i1, i2 = sp.where(sp.diff(heading) > threshold)[0][0:2]
-		print "found heading zeros"
-		for i, segment in enumerate(range(i1, i2, skip)):
-			self.ps.getDataRaw(self.video_chan, segmentIndex=segment, 
-				data=self.video_buffer[i, :])
 
 
 	def capture_sweep(self, downsample_ratio=0, downsample_mode=0):
@@ -150,21 +137,21 @@ class RadarScope(object):
 		print "Time to capture data: ", str(time.time() - t1)
 		self.transfer_data(downsample_ratio, downsample_mode)
 
-	def zero_heading_indices(self, threshold=1000):
+	def zero_heading_indices(self, threshold=3000):
 		'''
 		Returns the indices of the data blocks where the heading signal
 		indicates that the antenna was at the zero point.
 		'''
-		heading = self.heading_buffer[:, -1]
+		heading = self.heading_buffer[:, 0]
 		i1, i2 = sp.where(sp.diff(heading) > threshold)[0][0:2]
 		return i1, i2
 
-	def trim_current_sweep(self, threshold=1000):
+	def trim_current_sweep(self, threshold=3000):
 		i1, i2 = self.zero_heading_indices(threshold)
 		self.trimmed_sweep = self.video_buffer[i1:i2, :]#((self.n_captures, -1))
 
 	def capture_trimmed_sweep(self, downsample_ratio=0, downsample_mode=0,
-		threshold=1000):
+		threshold=3000):
 		self.capture_sweep(downsample_ratio, downsample_mode)
 		self.trim_current_sweep()
 
@@ -229,11 +216,13 @@ class RadarScope(object):
 			print "Time to write data: ", str(time.time() - t1)
 
 
-	def record(self, minimum_interval=5, netcdf=True):
+	def record(self, minimum_interval=None, netcdf=True):
 		'''
 		Record sweeps continuously, waiting no less than minimum_interval
 		in between them.
 		'''
+		if minimum_interval is None:
+			minimum_interval = self.rotation_period
 		i = 0
 		t1 = minimum_interval + 1
 		while True:#
@@ -312,7 +301,7 @@ if __name__ == '__main__':
 	# picoscope = reload(picoscope)
 	# from picoscope import ps3000a
 	now = dt.datetime.now()
-	data_dir = "C:\\" + str(now.year) + zfill(now.month, 2) + zfill(now.day, 2)
+	data_dir = "C:\\test"#"C:\\" + str(now.year) + zfill(now.month, 2) + zfill(now.day, 2)
 	if not os.path.exists(data_dir):
 		os.mkdir(data_dir)
 
@@ -321,14 +310,14 @@ if __name__ == '__main__':
 	SERIAL_NUM = 'AR911/011\x00'
 	ps = ps3000a.PS3000a(SERIAL_NUM)
 
-	max_range = 5e3
+	max_range = 6e3
 	rscope = RadarScope(ps, max_range=max_range, range_resolution=6.0, pulse_rate=2100,
 		trigger_voltage=1.5, data_dir=data_dir)
 
 	# rscope.run_sweep()
 	# rscope.ps.waitReady()
 	# print "transferring"
-	# rscope.transfer_data2()
+	# rscope.transfer_data()
 	# print "done"
 
 	# rscope.capture_sweep()
