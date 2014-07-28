@@ -5,6 +5,7 @@ from scipy.io import netcdf
 import time
 from ctypes import *
 import os
+import winsound
 import threading
 
 # collect 5% more samples than nominally necessary
@@ -233,6 +234,7 @@ class RadarScope(object):
 				try:
 					self.capture_trimmed_sweep()
 				except:
+					winsound.Beep(100, 300)
 					print "failed to capture " + self.last_sweep_time
 				if netcdf:
 					rec_thread = threading.Thread(target=self.to_netcdf_file, kwargs={"echo" : True})
@@ -311,8 +313,11 @@ if __name__ == '__main__':
 	ps = ps3000a.PS3000a(SERIAL_NUM)
 
 	max_range = 6e3
-	rscope = RadarScope(ps, max_range=max_range, range_resolution=6.0, pulse_rate=2100,
-		trigger_voltage=1.5, data_dir=data_dir)
+	range_resolution = 6
+	pulse_rate = 2100
+
+	rscope = RadarScope(ps, max_range=max_range, range_resolution=range_resolution,
+	 pulse_rate=pulse_rate, trigger_voltage=1.5, data_dir=data_dir)
 
 	# rscope.run_sweep()
 	# rscope.ps.waitReady()
