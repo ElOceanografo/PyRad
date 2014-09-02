@@ -303,7 +303,7 @@ if __name__ == '__main__':
 	# picoscope = reload(picoscope)
 	# from picoscope import ps3000a
 	now = dt.datetime.now()
-	data_dir = "C:\\" + str(now.year) + zfill(now.month, 2) + zfill(now.day, 2)
+	data_dir = "E:\\" + str(now.year) + zfill(now.month, 2) + zfill(now.day, 2)
 	if not os.path.exists(data_dir):
 		os.mkdir(data_dir)
 
@@ -312,35 +312,30 @@ if __name__ == '__main__':
 	SERIAL_NUM = 'AR911/011\x00'
 	ps = ps3000a.PS3000a(SERIAL_NUM)
 
-	max_range = 6e3
-	range_resolution = 6
-	pulse_rate = 2100
+	rscope = RadarScope(ps,
+		max_range=6e3, 
+		range_resolution=6,
+	 	pulse_rate=2100, 
+	 	trigger_voltage=1.5,
+	 	data_dir=data_dir)
 
-	rscope = RadarScope(ps, max_range=max_range, range_resolution=range_resolution,
-	 pulse_rate=pulse_rate, trigger_voltage=1.5, data_dir=data_dir)
+	rscope.record()
+	rscope.disconnect()
 
-	# rscope.run_sweep()
-	# rscope.ps.waitReady()
-	# print "transferring"
-	# rscope.transfer_data()
-	# print "done"
+
 
 	# rscope.capture_sweep()
 	# rscope.capture_trimmed_sweep()
 	# rscope.to_netcdf_file(dir=".", echo=True)
-	rscope.record()
-	# rscope.wait_zero_heading()
-	rscope.disconnect()
-
 	# plt.imshow(rscope.video_buffer, aspect="auto")
 	# plt.show()
 
-	# data_to_plot = rscope.trimmed_sweep[::4, :]
+	# data_to_plot = rscope.trimmed_sweep#[::4, :]
 	# fig = plt.figure()
 	# ax = fig.add_subplot(111, polar=True)
 
 	# theta = sp.linspace(2 * sp.pi, 0, data_to_plot.shape[0])
-	# R = sp.linspace(0, max_range, data_to_plot.shape[1])
-	# pcm = ax.pcolormesh(theta, R, data_to_plot.T)
+	# R = sp.linspace(0, rscope.max_range, data_to_plot.shape[1])
+	# pcm = ax.pcolormesh(theta, R, data_to_plot.T, vmax=20000)
 	# plt.colorbar(pcm)
 	# plt.show()

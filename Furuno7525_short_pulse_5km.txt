@@ -1,0 +1,14 @@
+{
+"pico_serial" : 'AR911/011\x00',
+"rotation_period" : 2.4,
+"pulse_rate" : 2100,
+"range_resolution" : 6.0,
+"max_range" : 5e3, 
+"video_chan" : "A", 
+"video_voltage" : [-0.1, 2],
+"trigger_voltage" : 1.5,
+"heading_chan" : "B", 
+"heading_voltage" : [1, -10],
+"heading_threshold" : -0.8,
+"data_dir" : "."
+}
