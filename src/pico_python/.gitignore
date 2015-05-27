@@ -1,6 +1,0 @@
-test_block_file.dat
-*.pyc
-*.py~
-build
-dist
-*.egg-info
