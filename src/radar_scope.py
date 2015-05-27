@@ -1,4 +1,4 @@
-from pico_python.picoscope import ps3000a
+from picoscope import ps3000a
 import numpy as np
 import scipy as sp
 from scipy.io import netcdf
